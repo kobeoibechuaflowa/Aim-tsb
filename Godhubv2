@@ -1,0 +1,239 @@
+-- FULL GODHUB v2 - Aimbot + Đánh Dưới Chân + UI KRNL + Hiệu Ứng UI
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local aimPart = "Head"
+local aimbotEnabled = false
+local underHitEnabled = false
+local aimlockTarget = nil
+local guiVisible = true
+
+-- === Tìm người chơi gần giữa màn hình nhất ===
+local function getTargetInFront()
+    local closest = nil
+    local shortest = math.huge
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(aimPart) then
+            local pos, visible = Camera:WorldToViewportPoint(player.Character[aimPart].Position)
+            if visible then
+                local dist = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+                if dist < shortest then
+                    shortest = dist
+                    closest = player
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- === UI ===
+local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+screenGui.Name = "GODHUB"
+screenGui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 350, 0, 220)
+frame.Position = UDim2.new(0.5, -175, 0.5, -110)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+
+local corner = Instance.new("UICorner", frame)
+corner.CornerRadius = UDim.new(0, 8)
+
+-- Tabs
+local tabAimbot = Instance.new("TextButton", frame)
+tabAimbot.Size = UDim2.new(0.5, 0, 0, 30)
+tabAimbot.Position = UDim2.new(0, 0, 0, 0)
+tabAimbot.Text = "🎯 Aimbot"
+tabAimbot.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+tabAimbot.TextColor3 = Color3.fromRGB(200,200,255)
+tabAimbot.Font = Enum.Font.Gotham
+tabAimbot.TextSize = 16
+
+local tabUnder = Instance.new("TextButton", frame)
+tabUnder.Size = UDim2.new(0.5, 0, 0, 30)
+tabUnder.Position = UDim2.new(0.5, 0, 0, 0)
+tabUnder.Text = "🦶 Đánh dưới chân"
+tabUnder.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+tabUnder.TextColor3 = Color3.fromRGB(200,200,255)
+tabUnder.Font = Enum.Font.Gotham
+tabUnder.TextSize = 16
+
+-- AIMBOT PANEL
+local aimbotPanel = Instance.new("Frame", frame)
+aimbotPanel.Size = UDim2.new(1, 0, 1, -30)
+aimbotPanel.Position = UDim2.new(0, 0, 0, 30)
+aimbotPanel.BackgroundTransparency = 1
+
+local toggleBtn = Instance.new("TextButton", aimbotPanel)
+toggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
+toggleBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
+toggleBtn.Font = Enum.Font.Gotham
+toggleBtn.TextSize = 18
+toggleBtn.Text = "🎯 Toggle Aimbot"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 6)
+
+local statusLabel = Instance.new("TextLabel", aimbotPanel)
+statusLabel.Size = UDim2.new(1, 0, 0, 30)
+statusLabel.Position = UDim2.new(0, 0, 0.35, 0)
+statusLabel.BackgroundTransparency = 1
+statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+statusLabel.Text = "Aimbot: OFF | Target: None"
+statusLabel.Font = Enum.Font.Gotham
+
+-- UNDER PANEL
+local underPanel = Instance.new("Frame", frame)
+underPanel.Size = UDim2.new(1, 0, 1, -30)
+underPanel.Position = UDim2.new(0, 0, 0, 30)
+underPanel.BackgroundTransparency = 1
+underPanel.Visible = false
+
+local toggleUnderBtn = Instance.new("TextButton", underPanel)
+toggleUnderBtn.Size = UDim2.new(0.8, 0, 0, 35)
+toggleUnderBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
+toggleUnderBtn.Font = Enum.Font.Gotham
+toggleUnderBtn.TextSize = 18
+toggleUnderBtn.Text = "🦶 Toggle Đánh dưới chân"
+toggleUnderBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
+toggleUnderBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", toggleUnderBtn).CornerRadius = UDim.new(0, 6)
+
+local underStatusLabel = Instance.new("TextLabel", underPanel)
+underStatusLabel.Size = UDim2.new(1, 0, 0, 30)
+underStatusLabel.Position = UDim2.new(0, 0, 0.35, 0)
+underStatusLabel.BackgroundTransparency = 1
+underStatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+underStatusLabel.Text = "UnderHit: OFF | Target: None"
+underStatusLabel.Font = Enum.Font.Gotham
+
+-- TOGGLE GUI
+local toggleGuiBtn = Instance.new("TextButton", frame)
+toggleGuiBtn.Size = UDim2.new(0.8, 0, 0, 25)
+toggleGuiBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
+toggleGuiBtn.Text = "👁 Ẩn UI"
+toggleGuiBtn.Font = Enum.Font.Gotham
+toggleGuiBtn.TextSize = 14
+toggleGuiBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+toggleGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", toggleGuiBtn).CornerRadius = UDim.new(0, 6)
+
+-- Show UI Button
+local showGuiBtn = Instance.new("TextButton", screenGui)
+showGuiBtn.Size = UDim2.new(0, 120, 0, 30)
+showGuiBtn.Position = UDim2.new(0, 10, 1, -40)
+showGuiBtn.Text = "👁 Mở lại UI"
+showGuiBtn.Font = Enum.Font.Gotham
+showGuiBtn.TextSize = 14
+showGuiBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+showGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
+showGuiBtn.Visible = false
+Instance.new("UICorner", showGuiBtn).CornerRadius = UDim.new(0, 6)
+
+-- === Hoạt ảnh UI ===
+local function animateHide()
+    local tweenOut = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    })
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        frame.Visible = false
+        showGuiBtn.Visible = true
+        frame.Size = UDim2.new(0, 350, 0, 220)
+        frame.Position = UDim2.new(0.5, -175, 0.5, -110)
+        frame.BackgroundTransparency = 0
+    end)
+end
+
+local function animateShow()
+    frame.Visible = true
+    frame.Size = UDim2.new(0, 0, 0, 0)
+    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    frame.BackgroundTransparency = 1
+
+    local tweenIn = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 350, 0, 220),
+        Position = UDim2.new(0.5, -175, 0.5, -110),
+        BackgroundTransparency = 0
+    })
+    tweenIn:Play()
+end
+
+-- === Logic ===
+toggleBtn.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    aimlockTarget = getTargetInFront()
+    local name = aimlockTarget and aimlockTarget.Name or "None"
+    statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
+end)
+
+toggleUnderBtn.MouseButton1Click:Connect(function()
+    underHitEnabled = not underHitEnabled
+    underStatusLabel.Text = "UnderHit: " .. (underHitEnabled and "ON" or "OFF") .. " | Target: None"
+end)
+
+tabAimbot.MouseButton1Click:Connect(function()
+    aimbotPanel.Visible = true
+    underPanel.Visible = false
+end)
+
+tabUnder.MouseButton1Click:Connect(function()
+    aimbotPanel.Visible = false
+    underPanel.Visible = true
+end)
+
+toggleGuiBtn.MouseButton1Click:Connect(function()
+    guiVisible = false
+    animateHide()
+end)
+
+showGuiBtn.MouseButton1Click:Connect(function()
+    guiVisible = true
+    showGuiBtn.Visible = false
+    animateShow()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if input.KeyCode == Enum.KeyCode.Insert then
+        aimbotEnabled = not aimbotEnabled
+        aimlockTarget = getTargetInFront()
+        local name = aimlockTarget and aimlockTarget.Name or "None"
+        statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
+    elseif input.KeyCode == Enum.KeyCode.RightControl then
+        guiVisible = not guiVisible
+        if guiVisible then animateShow() else animateHide() end
+        showGuiBtn.Visible = not guiVisible
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled and aimlockTarget and aimlockTarget.Character and aimlockTarget.Character:FindFirstChild(aimPart) then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimlockTarget.Character[aimPart].Position)
+    end
+
+    if underHitEnabled then
+        local target = getTargetInFront()
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character then
+            local myHRP = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            local enemyHRP = target.Character:FindFirstChild("HumanoidRootPart")
+            if myHRP and enemyHRP then
+                myHRP.CFrame = enemyHRP.CFrame * CFrame.new(0, -5, 0)
+                underStatusLabel.Text = "UnderHit: ON | Target: " .. target.Name
+            end
+        end
+    end
+end)
+
+print("✅ GODHUB v2 đã load đầy đủ: Aimbot + UnderHit + UI hiệu ứng mượt.")
