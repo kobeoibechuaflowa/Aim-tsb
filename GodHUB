@@ -1,4 +1,4 @@
--- FULL GODHUB v2 - Aimbot + Đánh Dưới Chân + UI KRNL + Hiệu Ứng UI
+-- FULL GODHUB v2 - Aimbot + Đánh Dưới Chân + UI KRNL + Dropdown chọn player + Hiệu Ứng UI
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -11,6 +11,7 @@ local aimbotEnabled = false
 local underHitEnabled = false
 local aimlockTarget = nil
 local guiVisible = true
+local selectedPlayer = nil
 
 -- === Tìm người chơi gần giữa màn hình nhất ===
 local function getTargetInFront()
@@ -45,9 +46,7 @@ frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-
-local corner = Instance.new("UICorner", frame)
-corner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
 
 -- Tabs
 local tabAimbot = Instance.new("TextButton", frame)
@@ -117,9 +116,182 @@ underStatusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 underStatusLabel.Text = "UnderHit: OFF | Target: None"
 underStatusLabel.Font = Enum.Font.Gotham
 
+-- === Dropdown chọn player ===
+local dropdown = Instance.new("TextButton", underPanel)
+dropdown.Size = UDim2.new(0.8, 0, 0, 30)
+dropdown.Position = UDim2.new(0.1, 0, 0.55, 0)
+dropdown.Text = "🕽️ Chọn người chơi"
+dropdown.Font = Enum.Font.Gotham
+dropdown.TextSize = 14
+dropdown.BackgroundColor3 = Color3.fromRGB(60, 60, 100)
+dropdown.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", dropdown).CornerRadius = UDim.new(0, 6)
+
+local dropFrame = Instance.new("Frame", dropdown)
+dropFrame.Size = UDim2.new(1, 0, 0, 100)
+dropFrame.Position = UDim2.new(0, 0, 1, 0)
+dropFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 55)
+dropFrame.Visible = false
+dropFrame.ClipsDescendants = true
+Instance.new("UICorner", dropFrame).CornerRadius = UDim.new(0, 6)
+
+local UIListLayout = Instance.new("UIListLayout", dropFrame)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function refreshPlayerList()
+    dropFrame:ClearAllChildren()
+    UIListLayout.Parent = dropFrame
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local btn = Instance.new("TextButton", dropFrame)
+            btn.Size = UDim2.new(1, 0, 0, 25)
+            btn.Text = player.Name
+            btn.Font = Enum.Font.Gotham
+            btn.TextSize = 14
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+            btn.TextColor3 = Color3.fromRGB(255,255,255)
+            btn.MouseButton1Click:Connect(function()
+                selectedPlayer = player
+                dropdown.Text = "🕽️ " .. player.Name
+                dropFrame.Visible = false
+            end)
+        end
+    end
+end
+
+dropdown.MouseButton1Click:Connect(function()
+    dropFrame.Visible = not dropFrame.Visible
+end)
+
+local refreshBtn = Instance.new("TextButton", underPanel)
+refreshBtn.Size = UDim2.new(0.8, 0, 0, 25)
+refreshBtn.Position = UDim2.new(0.1, 0, 1, -35)
+refreshBtn.Text = "🔄 Làm mới danh sách"
+refreshBtn.Font = Enum.Font.Gotham
+refreshBtn.TextSize = 14
+refreshBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+refreshBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
+
+refreshBtn.MouseButton1Click:Connect(refreshPlayerList)
+refreshPlayerList()
+
 -- TOGGLE GUI
 local toggleGuiBtn = Instance.new("TextButton", frame)
 toggleGuiBtn.Size = UDim2.new(0.8, 0, 0, 25)
+toggleGuiBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
+toggleGuiBtn.Text = "👁 Ẩn UI"
+toggleGuiBtn.Font = Enum.Font.Gotham
+toggleGuiBtn.TextSize = 14
+toggleGuiBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+toggleGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", toggleGuiBtn).CornerRadius = UDim.new(0, 6)
+
+local showGuiBtn = Instance.new("TextButton", screenGui)
+showGuiBtn.Size = UDim2.new(0, 120, 0, 30)
+showGuiBtn.Position = UDim2.new(0, 10, 1, -40)
+showGuiBtn.Text = "👁 Mở lại UI"
+showGuiBtn.Font = Enum.Font.Gotham
+showGuiBtn.TextSize = 14
+showGuiBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+showGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
+showGuiBtn.Visible = false
+Instance.new("UICorner", showGuiBtn).CornerRadius = UDim.new(0, 6)
+
+-- === Hiệu ứng UI ===
+local function animateHide()
+    local tweenOut = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    })
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        frame.Visible = false
+        showGuiBtn.Visible = true
+        frame.Size = UDim2.new(0, 350, 0, 220)
+        frame.Position = UDim2.new(0.5, -175, 0.5, -110)
+        frame.BackgroundTransparency = 0
+    end)
+end
+
+local function animateShow()
+    frame.Visible = true
+    frame.Size = UDim2.new(0, 0, 0, 0)
+    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    frame.BackgroundTransparency = 1
+
+    local tweenIn = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 350, 0, 220),
+        Position = UDim2.new(0.5, -175, 0.5, -110),
+        BackgroundTransparency = 0
+    })
+    tweenIn:Play()
+end
+
+-- === Logic ===
+toggleBtn.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    aimlockTarget = getTargetInFront()
+    local name = aimlockTarget and aimlockTarget.Name or "None"
+    statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
+end)
+
+toggleUnderBtn.MouseButton1Click:Connect(function()
+    underHitEnabled = not underHitEnabled
+    underStatusLabel.Text = "UnderHit: " .. (underHitEnabled and "ON" or "OFF") .. " | Target: " .. (selectedPlayer and selectedPlayer.Name or "None")
+end)
+
+tabAimbot.MouseButton1Click:Connect(function()
+    aimbotPanel.Visible = true
+    underPanel.Visible = false
+end)
+
+tabUnder.MouseButton1Click:Connect(function()
+    aimbotPanel.Visible = false
+    underPanel.Visible = true
+end)
+
+toggleGuiBtn.MouseButton1Click:Connect(function()
+    guiVisible = false
+    animateHide()
+end)
+
+showGuiBtn.MouseButton1Click:Connect(function()
+    guiVisible = true
+    showGuiBtn.Visible = false
+    animateShow()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if input.KeyCode == Enum.KeyCode.Insert then
+        aimbotEnabled = not aimbotEnabled
+        aimlockTarget = getTargetInFront()
+        local name = aimlockTarget and aimlockTarget.Name or "None"
+        statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
+    elseif input.KeyCode == Enum.KeyCode.RightControl then
+        guiVisible = not guiVisible
+        if guiVisible then animateShow() else animateHide() end
+        showGuiBtn.Visible = not guiVisible
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled and aimlockTarget and aimlockTarget.Character and aimlockTarget.Character:FindFirstChild(aimPart) then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimlockTarget.Character[aimPart].Position)
+    end
+
+    if underHitEnabled and selectedPlayer and selectedPlayer.Character then
+        local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local enemyHRP = selectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if myHRP and enemyHRP then
+            myHRP.CFrame = enemyHRP.CFrame * CFrame.new(4, -6, 0) -- lệch để tránh bị đánh
+            underStatusLabel.Text = "UnderHit: ON | Target: " .. selectedPlayer.Name
+        end
+    end
+end)
+
+print("\226\156\150 GODHUB v2 đã load đủ: Aimbot + UnderHit + Dropdown + UI mượt")
 toggleGuiBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
 toggleGuiBtn.Text = "👁 Ẩn UI"
 toggleGuiBtn.Font = Enum.Font.Gotham
