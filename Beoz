@@ -1,4 +1,3 @@
--- 💥 GODHUB - Aimlock Script (Executor/KRNL)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -10,14 +9,35 @@ local aimbotEnabled = false
 local aimlockTarget = nil
 local guiVisible = true
 
--- GUI setup
+-- === Tìm người chơi gần giữa màn hình nhất ===
+local function getTargetInFront()
+	local closest = nil
+	local shortest = math.huge
+	local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild(aimPart) then
+			local pos, visible = Camera:WorldToViewportPoint(player.Character[aimPart].Position)
+			if visible then
+				local dist = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+				if dist < shortest then
+					shortest = dist
+					closest = player
+				end
+			end
+		end
+	end
+	return closest
+end
+
+-- === Tạo GUI GODHUB ===
 local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
 screenGui.Name = "GODHUB"
 screenGui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 320, 0, 230)
-frame.Position = UDim2.new(0.5, -160, 0.5, -115)
+frame.Size = UDim2.new(0, 300, 0, 180)
+frame.Position = UDim2.new(0.5, -150, 0.5, -90)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -25,91 +45,73 @@ frame.Draggable = true
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1, 0, 0, 40)
-title.Text = "💥 GODHUB - AIMLOCK"
 title.BackgroundTransparency = 1
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 24
-
-local nameBox = Instance.new("TextBox", frame)
-nameBox.Size = UDim2.new(0.8, 0, 0, 30)
-nameBox.Position = UDim2.new(0.1, 0, 0.3, 0)
-nameBox.PlaceholderText = "Nhập tên player cần khóa"
-nameBox.Text = ""
-nameBox.Font = Enum.Font.Gotham
-nameBox.TextSize = 16
-
-local lockBtn = Instance.new("TextButton", frame)
-lockBtn.Size = UDim2.new(0.8, 0, 0, 30)
-lockBtn.Position = UDim2.new(0.1, 0, 0.45, 0)
-lockBtn.Text = "🔒 Lock Target"
-lockBtn.Font = Enum.Font.Gotham
-lockBtn.TextSize = 16
+title.Text = "💥 GODHUB - AIMLOCK"
 
 local toggleBtn = Instance.new("TextButton", frame)
-toggleBtn.Size = UDim2.new(0.8, 0, 0, 30)
-toggleBtn.Position = UDim2.new(0.1, 0, 0.6, 0)
-toggleBtn.Text = "🎯 Toggle Aimbot"
+toggleBtn.Size = UDim2.new(0.8, 0, 0, 35)
+toggleBtn.Position = UDim2.new(0.1, 0, 0.35, 0)
 toggleBtn.Font = Enum.Font.Gotham
-toggleBtn.TextSize = 16
+toggleBtn.TextSize = 18
+toggleBtn.Text = "🎯 Toggle Aimbot"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
 
 local statusLabel = Instance.new("TextLabel", frame)
 statusLabel.Size = UDim2.new(1, 0, 0, 30)
-statusLabel.Position = UDim2.new(0, 0, 0.75, 0)
+statusLabel.Position = UDim2.new(0, 0, 0.6, 0)
 statusLabel.BackgroundTransparency = 1
 statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 statusLabel.Text = "Aimbot: OFF | Target: None"
 
 local toggleGuiBtn = Instance.new("TextButton", frame)
 toggleGuiBtn.Size = UDim2.new(0.8, 0, 0, 25)
-toggleGuiBtn.Position = UDim2.new(0.1, 0, 0.89, 0)
-toggleGuiBtn.Text = "Ẩn / Hiện GUI"
+toggleGuiBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
+toggleGuiBtn.Text = "👁 Ẩn UI"
 toggleGuiBtn.Font = Enum.Font.Gotham
 toggleGuiBtn.TextSize = 14
+toggleGuiBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+toggleGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
 
--- AIMLOCK camera
+-- === Chạy Aimbot khi bật ===
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled and aimlockTarget and aimlockTarget.Character and aimlockTarget.Character:FindFirstChild(aimPart) then
 		Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimlockTarget.Character[aimPart].Position)
 	end
 end)
 
--- LOCK nút
-lockBtn.MouseButton1Click:Connect(function()
-	local nameInput = nameBox.Text
-	for _, plr in pairs(Players:GetPlayers()) do
-		if string.lower(plr.Name):sub(1, #nameInput) == string.lower(nameInput) then
-			aimlockTarget = plr
-			statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. plr.Name
-			return
-		end
-	end
-	statusLabel.Text = "❌ Không tìm thấy player!"
-end)
-
--- TOGGLE Aimbot
+-- === Toggle Aimbot ===
 toggleBtn.MouseButton1Click:Connect(function()
 	aimbotEnabled = not aimbotEnabled
-	local targetName = aimlockTarget and aimlockTarget.Name or "None"
-	statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. targetName
+	if aimbotEnabled then
+		aimlockTarget = getTargetInFront()
+	end
+	local name = aimlockTarget and aimlockTarget.Name or "None"
+	statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
 end)
 
--- Toggle GUI hiển thị
+-- === Toggle UI bằng nút trên GUI ===
 toggleGuiBtn.MouseButton1Click:Connect(function()
 	guiVisible = not guiVisible
 	frame.Visible = guiVisible
 end)
 
--- Toggle bằng RightControl
+-- === Toggle bằng phím tắt (Insert = bật aimbot, RightControl = ẩn GUI) ===
 UserInputService.InputBegan:Connect(function(input, gp)
 	if input.KeyCode == Enum.KeyCode.Insert then
 		aimbotEnabled = not aimbotEnabled
-		local targetName = aimlockTarget and aimlockTarget.Name or "None"
-		statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. targetName
+		if aimbotEnabled then
+			aimlockTarget = getTargetInFront()
+		end
+		local name = aimlockTarget and aimlockTarget.Name or "None"
+		statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
 	elseif input.KeyCode == Enum.KeyCode.RightControl then
 		guiVisible = not guiVisible
 		frame.Visible = guiVisible
 	end
 end)
 
-print("✅ GODHUB AIMLOCK loaded! Nhập tên player và bấm Lock để khóa mục tiêu.")
+print("✅ GODHUB đã load với Aimbot Lock và UI Toggle đầy đủ.")
