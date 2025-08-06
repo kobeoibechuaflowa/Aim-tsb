@@ -76,6 +76,17 @@ toggleGuiBtn.TextSize = 14
 toggleGuiBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
 toggleGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
 
+-- === Nút hiện lại UI ===
+local showGuiBtn = Instance.new("TextButton", screenGui)
+showGuiBtn.Size = UDim2.new(0, 120, 0, 30)
+showGuiBtn.Position = UDim2.new(0, 10, 1, -40)
+showGuiBtn.Text = "👁 Mở lại UI"
+showGuiBtn.Font = Enum.Font.Gotham
+showGuiBtn.TextSize = 14
+showGuiBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+showGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
+showGuiBtn.Visible = false
+
 -- === Chạy Aimbot khi bật ===
 RunService.RenderStepped:Connect(function()
 	if aimbotEnabled and aimlockTarget and aimlockTarget.Character and aimlockTarget.Character:FindFirstChild(aimPart) then
@@ -93,13 +104,21 @@ toggleBtn.MouseButton1Click:Connect(function()
 	statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
 end)
 
--- === Toggle UI bằng nút trên GUI ===
+-- === Toggle UI bằng nút trên khung ===
 toggleGuiBtn.MouseButton1Click:Connect(function()
-	guiVisible = not guiVisible
-	frame.Visible = guiVisible
+	guiVisible = false
+	frame.Visible = false
+	showGuiBtn.Visible = true
 end)
 
--- === Toggle bằng phím tắt (Insert = bật aimbot, RightControl = ẩn GUI) ===
+-- === Mở lại UI từ nút góc màn hình ===
+showGuiBtn.MouseButton1Click:Connect(function()
+	guiVisible = true
+	frame.Visible = true
+	showGuiBtn.Visible = false
+end)
+
+-- === Toggle bằng phím tắt ===
 UserInputService.InputBegan:Connect(function(input, gp)
 	if input.KeyCode == Enum.KeyCode.Insert then
 		aimbotEnabled = not aimbotEnabled
@@ -111,7 +130,8 @@ UserInputService.InputBegan:Connect(function(input, gp)
 	elseif input.KeyCode == Enum.KeyCode.RightControl then
 		guiVisible = not guiVisible
 		frame.Visible = guiVisible
+		showGuiBtn.Visible = not guiVisible
 	end
 end)
 
-print("✅ GODHUB đã load với Aimbot Lock và UI Toggle đầy đủ.")
+print("✅ GODHUB đã load đầy đủ: Aimbot Lock + GUI toggle + Hiện lại UI.")
