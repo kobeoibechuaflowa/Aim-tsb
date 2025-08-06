@@ -1,14 +1,9 @@
--- DarknessGodHUB for KRNL - Aimbot + UnderFeet + GUI + Refresh Player List
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
-
--- Đợi LocalPlayer load
-repeat wait() until LocalPlayer and LocalPlayer.Character
 
 local aimPart = "Head"
 local aimbotEnabled = false
@@ -17,7 +12,7 @@ local aimlockTarget = nil
 local underHitTarget = nil
 local guiVisible = true
 
--- Tạo GUI đơn giản, tối ưu
+-- GUI setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "DarknessGodHUB"
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -30,116 +25,96 @@ frame.BackgroundColor3 = Color3.fromRGB(38, 38, 48)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-local corner = Instance.new("UICorner", frame)
-corner.CornerRadius = UDim.new(0, 10)
 
--- Tabs
-local tabAimbot = Instance.new("TextButton", frame)
-tabAimbot.Size = UDim2.new(0.5, 0, 0, 35)
-tabAimbot.Position = UDim2.new(0, 0, 0, 0)
-tabAimbot.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-tabAimbot.TextColor3 = Color3.fromRGB(220, 220, 255)
-tabAimbot.Font = Enum.Font.GothamBold
-tabAimbot.TextSize = 18
-tabAimbot.Text = "🎯 Aimbot"
-tabAimbot.AutoButtonColor = false
-local cornerTabAimbot = Instance.new("UICorner", tabAimbot)
-cornerTabAimbot.CornerRadius = UDim.new(0, 10)
+local function safeFindPart(character, partName)
+    if not character then return nil end
+    local part = character:FindFirstChild(partName)
+    if part and part:IsA("BasePart") then
+        return part
+    end
+    return nil
+end
 
-local tabUnder = Instance.new("TextButton", frame)
-tabUnder.Size = UDim2.new(0.5, 0, 0, 35)
-tabUnder.Position = UDim2.new(0.5, 0, 0, 0)
-tabUnder.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
-tabUnder.TextColor3 = Color3.fromRGB(220, 220, 255)
-tabUnder.Font = Enum.Font.GothamBold
-tabUnder.TextSize = 18
-tabUnder.Text = "🦶 Đánh dưới chân"
-tabUnder.AutoButtonColor = false
-local cornerTabUnder = Instance.new("UICorner", tabUnder)
-cornerTabUnder.CornerRadius = UDim.new(0, 10)
+-- Lấy target gần giữa màn hình nhất
+local function getTargetInFront()
+    local closest = nil
+    local shortest = math.huge
+    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
 
--- Panels
-local aimbotPanel = Instance.new("Frame", frame)
-aimbotPanel.Size = UDim2.new(1, 0, 1, -35)
-aimbotPanel.Position = UDim2.new(0, 0, 0, 35)
-aimbotPanel.BackgroundTransparency = 1
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local character = player.Character
+            local part = safeFindPart(character, aimPart)
+            if part then
+                local pos, visible = pcall(function()
+                    return Camera:WorldToViewportPoint(part.Position)
+                end)
+                if pos and visible then
+                    local screenPos, isVisible = pos, visible
+                    if isVisible then
+                        local dist = (Vector2.new(screenPos.X, screenPos.Y) - screenCenter).Magnitude
+                        if dist < shortest then
+                            shortest = dist
+                            closest = player
+                        end
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
 
-local underPanel = Instance.new("Frame", frame)
-underPanel.Size = UDim2.new(1, 0, 1, -35)
-underPanel.Position = UDim2.new(0, 0, 0, 35)
-underPanel.BackgroundTransparency = 1
-underPanel.Visible = false
+-- Đảm bảo CFrame set an toàn
+local function safeSetCamera(targetPos)
+    pcall(function()
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPos)
+    end)
+end
 
--- Aimbot UI
-local toggleAimbotBtn = Instance.new("TextButton", aimbotPanel)
-toggleAimbotBtn.Size = UDim2.new(0.8, 0, 0, 40)
-toggleAimbotBtn.Position = UDim2.new(0.1, 0, 0.1, 0)
-toggleAimbotBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 120)
-toggleAimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleAimbotBtn.Font = Enum.Font.GothamBold
-toggleAimbotBtn.TextSize = 20
-toggleAimbotBtn.Text = "🎯 Toggle Aimbot"
-local cornerToggleAimbot = Instance.new("UICorner", toggleAimbotBtn)
-cornerToggleAimbot.CornerRadius = UDim.new(0, 8)
+-- RenderStepped
+RunService.RenderStepped:Connect(function()
+    -- Aimbot
+    if aimbotEnabled then
+        local target = getTargetInFront()
+        if target ~= aimlockTarget then
+            aimlockTarget = target
+        end
+        if aimlockTarget and aimlockTarget.Character then
+            local part = safeFindPart(aimlockTarget.Character, aimPart)
+            if part then
+                safeSetCamera(part.Position)
+            end
+        end
+    else
+        aimlockTarget = nil
+    end
 
-local aimbotStatus = Instance.new("TextLabel", aimbotPanel)
-aimbotStatus.Size = UDim2.new(1, 0, 0, 30)
-aimbotStatus.Position = UDim2.new(0, 0, 0.3, 0)
-aimbotStatus.BackgroundTransparency = 1
-aimbotStatus.TextColor3 = Color3.fromRGB(230, 230, 255)
-aimbotStatus.Font = Enum.Font.GothamBold
-aimbotStatus.TextSize = 18
-aimbotStatus.Text = "Aimbot: OFF | Target: None"
+    -- Đánh dưới chân
+    if underHitEnabled and underHitTarget and underHitTarget.Character and LocalPlayer.Character then
+        local myChar = LocalPlayer.Character
+        local myHRP = safeFindPart(myChar, "HumanoidRootPart")
+        local targetHRP = safeFindPart(underHitTarget.Character, "HumanoidRootPart")
+        if myHRP and targetHRP then
+            pcall(function()
+                local pos = targetHRP.Position - Vector3.new(0, targetHRP.Size.Y/2 + 2, 0)
+                myHRP.CFrame = CFrame.new(pos)
+                myHRP.Transparency = 1
+                myHRP.CanCollide = false
+                myHRP.Size = Vector3.new(0.5, 0.5, 0.5)
+            end)
+        end
+    elseif LocalPlayer.Character then
+        local myHRP = safeFindPart(LocalPlayer.Character, "HumanoidRootPart")
+        if myHRP then
+            myHRP.Transparency = 0
+            myHRP.CanCollide = true
+            myHRP.Size = Vector3.new(2, 2, 1)
+        end
+    end
+end)
 
--- UnderFeet UI
-local toggleUnderBtn = Instance.new("TextButton", underPanel)
-toggleUnderBtn.Size = UDim2.new(0.8, 0, 0, 40)
-toggleUnderBtn.Position = UDim2.new(0.1, 0, 0.05, 0)
-toggleUnderBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 120)
-toggleUnderBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleUnderBtn.Font = Enum.Font.GothamBold
-toggleUnderBtn.TextSize = 20
-toggleUnderBtn.Text = "🦶 Toggle Đánh dưới chân"
-local cornerToggleUnder = Instance.new("UICorner", toggleUnderBtn)
-cornerToggleUnder.CornerRadius = UDim.new(0, 8)
-
-local underStatus = Instance.new("TextLabel", underPanel)
-underStatus.Size = UDim2.new(1, 0, 0, 30)
-underStatus.Position = UDim2.new(0, 0, 0.3, 0)
-underStatus.BackgroundTransparency = 1
-underStatus.TextColor3 = Color3.fromRGB(230, 230, 255)
-underStatus.Font = Enum.Font.GothamBold
-underStatus.TextSize = 18
-underStatus.Text = "UnderHit: OFF | Target: None"
-
--- DarknessGodHUB for KRNL - Aimbot + Đánh dưới chân + GUI Toggle + Chọn Player + Refresh + Hiệu ứng tween đẹp
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-
--- Đợi LocalPlayer và Character load
-repeat wait() until LocalPlayer and LocalPlayer.Character
-
-local aimPart = "Head"
-local aimbotEnabled = false
-local underHitEnabled = false
-local aimlockTarget = nil
-local underHitTarget = nil
-local guiVisible = true
-
--- Tạo GUI DarknessGodHUB
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DarknessGodHUB"
-screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-screenGui.ResetOnSpawn = false
-
-local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 360, 0, 280)
-frame.Position = UDim2.new(0.5, -180, 0.5, -140)
+-- Bạn nhớ xem báo lỗi cụ thể KRNL hiện ra dòng nào hoặc message gì, để mình fix chính xác hơn nhé.
 frame.BackgroundColor3 = Color3.fromRGB(38, 38, 48)
 frame.BorderSizePixel = 0
 frame.Active = true
