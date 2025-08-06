@@ -1,4 +1,4 @@
--- FULL GODHUB v2 - Aimbot + Đánh Dưới Chân + UI KRNL + Hiệu Ứng UI
+-- FULL GODHUB v3 - Aimbot + Đánh dưới chân (giảm bị đánh) + UI KRNL + hiệu ứng đẹp
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -45,9 +45,7 @@ frame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
-
-local corner = Instance.new("UICorner", frame)
-corner.CornerRadius = UDim.new(0, 8)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 8)
 
 -- Tabs
 local tabAimbot = Instance.new("TextButton", frame)
@@ -58,6 +56,7 @@ tabAimbot.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
 tabAimbot.TextColor3 = Color3.fromRGB(200,200,255)
 tabAimbot.Font = Enum.Font.Gotham
 tabAimbot.TextSize = 16
+Instance.new("UICorner", tabAimbot).CornerRadius = UDim.new(0, 6)
 
 local tabUnder = Instance.new("TextButton", frame)
 tabUnder.Size = UDim2.new(0.5, 0, 0, 30)
@@ -67,6 +66,7 @@ tabUnder.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
 tabUnder.TextColor3 = Color3.fromRGB(200,200,255)
 tabUnder.Font = Enum.Font.Gotham
 tabUnder.TextSize = 16
+Instance.new("UICorner", tabUnder).CornerRadius = UDim.new(0, 6)
 
 -- AIMBOT PANEL
 local aimbotPanel = Instance.new("Frame", frame)
@@ -140,6 +140,133 @@ showGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
 showGuiBtn.Visible = false
 Instance.new("UICorner", showGuiBtn).CornerRadius = UDim.new(0, 6)
 
+-- === Hoạt ảnh UI ===
+local function animateHide()
+    local tweenOut = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    })
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        frame.Visible = false
+        showGuiBtn.Visible = true
+        frame.Size = UDim2.new(0, 350, 0, 220)
+        frame.Position = UDim2.new(0.5, -175, 0.5, -110)
+        frame.BackgroundTransparency = 0
+    end)
+end
+
+local function animateShow()
+    frame.Visible = true
+    frame.Size = UDim2.new(0, 0, 0, 0)
+    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    frame.BackgroundTransparency = 1
+
+    local tweenIn = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 350, 0, 220),
+        Position = UDim2.new(0.5, -175, 0.5, -110),
+        BackgroundTransparency = 0
+    })
+    tweenIn:Play()
+end
+
+-- === Logic ===
+toggleBtn.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    if aimbotEnabled then
+        aimlockTarget = getTargetInFront()
+    else
+        aimlockTarget = nil
+    end
+    local name = aimlockTarget and aimlockTarget.Name or "None"
+    statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
+end)
+
+toggleUnderBtn.MouseButton1Click:Connect(function()
+    underHitEnabled = not underHitEnabled
+    if not underHitEnabled then
+        -- Khi tắt UnderHit, khôi phục HRP kích thước và tính năng
+        local myChar = LocalPlayer.Character
+        if myChar then
+            local hrp = myChar:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.Size = Vector3.new(2, 2, 1)
+                hrp.Transparency = 0
+                hrp.CanCollide = true
+            end
+        end
+    end
+    underStatusLabel.Text = "UnderHit: " .. (underHitEnabled and "ON" or "OFF") .. " | Target: None"
+end)
+
+tabAimbot.MouseButton1Click:Connect(function()
+    aimbotPanel.Visible = true
+    underPanel.Visible = false
+end)
+
+tabUnder.MouseButton1Click:Connect(function()
+    aimbotPanel.Visible = false
+    underPanel.Visible = true
+end)
+
+toggleGuiBtn.MouseButton1Click:Connect(function()
+    guiVisible = false
+    animateHide()
+end)
+
+showGuiBtn.MouseButton1Click:Connect(function()
+    guiVisible = true
+    showGuiBtn.Visible = false
+    animateShow()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if input.KeyCode == Enum.KeyCode.Insert then
+        aimbotEnabled = not aimbotEnabled
+        if aimbotEnabled then
+            aimlockTarget = getTargetInFront()
+        else
+            aimlockTarget = nil
+        end
+        local name = aimlockTarget and aimlockTarget.Name or "None"
+        statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
+    elseif input.KeyCode == Enum.KeyCode.RightControl then
+        guiVisible = not guiVisible
+        if guiVisible then animateShow() else animateHide() end
+        showGuiBtn.Visible = not guiVisible
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    -- Aimbot
+    if aimbotEnabled and aimlockTarget and aimlockTarget.Character and aimlockTarget.Character:FindFirstChild(aimPart) then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimlockTarget.Character[aimPart].Position)
+    end
+
+    -- Đánh dưới chân
+    if underHitEnabled then
+        local target = getTargetInFront()
+        local myChar = LocalPlayer.Character
+        if target and target.Character and myChar then
+            local hrp = myChar:FindFirstChild("HumanoidRootPart")
+            local targetHRP = target.Character:FindFirstChild("HumanoidRootPart")
+            if hrp and targetHRP then
+                -- Tele xuống dưới chân đối thủ
+                hrp.CFrame = targetHRP.CFrame * CFrame.new(0, -5, 0)
+                -- Thu nhỏ và ẩn HRP giảm bị đánh trúng
+                hrp.Size = Vector3.new(1, 1, 1)
+                hrp.Transparency = 1
+                hrp.CanCollide = false
+            end
+            underStatusLabel.Text = "UnderHit: ON | Target: " .. target.Name
+        else
+            underStatusLabel.Text = "UnderHit: ON | Target: None"
+        end
+    end
+end)
+
+print("✅ GODHUB v3 đã load đầy đủ: Aimbot + UnderHit (ẩn hitbox) + UI hiệu ứng mượt.")
 -- === Hoạt ảnh UI ===
 local function animateHide()
     local tweenOut = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
