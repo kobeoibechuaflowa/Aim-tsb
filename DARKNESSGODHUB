@@ -1,7 +1,7 @@
--- DarknessGodHub full v1.0
+-- DarknessGodHub full v1.0 (no animation)
 -- Script UI + Aimlock (bật/tắt bằng nút)
 -- Màu đen-xanh neon kiểu KRNL
--- Có thanh nhỏ ngoài màn để mở/đóng hub với animation phóng to/thu nhỏ
+-- Có thanh nhỏ ngoài màn để mở/đóng hub ngay lập tức
 -- Hub có thể kéo di chuyển
 
 local Players = game:GetService("Players")
@@ -17,9 +17,6 @@ local aimEnabled = false
 local aimPartName = "HumanoidRootPart"
 local aimRange = 50
 local aimMinDot = 0.95 -- chỉ target người trước mặt
-
--- UI config
-local toggleAnimTime = 0.3
 
 -- ScreenGui setup
 local gui = Instance.new("ScreenGui")
@@ -118,28 +115,195 @@ contentCorner.CornerRadius = UDim.new(0, 10)
 
 -- Utility to create tab buttons
 local function createTabButton(name, order)
-    local btn = Instance.new("TextButton", tabFrame)
-    btn.Size = UDim2.new(1, 0, 0, 38)
-    btn.Position = UDim2.new(0, 0, 0, (order - 1) * 38)
-    btn.BackgroundTransparency = 1
-    btn.Text = name
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 16
-    btn.TextColor3 = Color3.fromRGB(180, 180, 180)
-    btn.Name = name .. "Btn"
-    btn.AutoButtonColor = true
-    btn.MouseButton1Click:Connect(function()
-        for _, frame in pairs(contentFrame:GetChildren()) do
-            if frame:IsA("Frame") then
-                frame.Visible = frame.Name == name
-            end
-        end
-        for _, button in pairs(tabFrame:GetChildren()) do
-            if button:IsA("TextButton") then
-                button.TextColor3 = button.Name == name .. "Btn" and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(180, 180, 180)
-            end
-        end
-    end)
+    local btn = Instance.new("TextButton", tabFrame)
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.Position = UDim2.new(0, 0, 0, (order - 1) * 38)
+    btn.BackgroundTransparency = 1
+    btn.Text = name
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 16
+    btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+    btn.Name = name .. "Btn"
+    btn.AutoButtonColor = true
+    btn.MouseButton1Click:Connect(function()
+        for _, frame in pairs(contentFrame:GetChildren()) do
+            if frame:IsA("Frame") then
+                frame.Visible = frame.Name == name
+            end
+        end
+        for _, button in pairs(tabFrame:GetChildren()) do
+            if button:IsA("TextButton") then
+                button.TextColor3 = button.Name == name .. "Btn" and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(180, 180, 180)
+            end
+        end
+    end)
+    return btn
+end
+
+-- Tabs Content
+
+-- Aimlock Tab
+local aimTab = Instance.new("Frame", contentFrame)
+aimTab.Name = "Aimlock"
+aimTab.Size = UDim2.new(1, 0, 1, 0)
+aimTab.BackgroundTransparency = 1
+aimTab.Visible = true
+
+local aimToggleBtn = Instance.new("TextButton", aimTab)
+aimToggleBtn.Size = UDim2.new(0, 180, 0, 40)
+aimToggleBtn.Position = UDim2.new(0, 15, 0, 15)
+aimToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+aimToggleBtn.Text = "Aimlock: OFF"
+aimToggleBtn.Font = Enum.Font.GothamBold
+aimToggleBtn.TextSize = 18
+aimToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+aimToggleBtn.BorderSizePixel = 0
+local aimToggleCorner = Instance.new("UICorner", aimToggleBtn)
+aimToggleCorner.CornerRadius = UDim.new(0, 8)
+
+aimToggleBtn.MouseButton1Click:Connect(function()
+    aimEnabled = not aimEnabled
+    aimToggleBtn.Text = aimEnabled and "Aimlock: ON" or "Aimlock: OFF"
+    aimToggleBtn.BackgroundColor3 = aimEnabled and Color3.fromRGB(0, 255, 180) or Color3.fromRGB(0, 180, 255)
+end)
+
+local aimDesc = Instance.new("TextLabel", aimTab)
+aimDesc.Size = UDim2.new(1, -30, 0, 60)
+aimDesc.Position = UDim2.new(0, 15, 0, 65)
+aimDesc.BackgroundTransparency = 1
+aimDesc.Text = "Aimlock sẽ tự động khóa camera vào phần thân người chơi trước mặt bạn trong phạm vi 50 studs.\nBật/tắt bằng nút trên."
+aimDesc.TextColor3 = Color3.fromRGB(200, 200, 200)
+aimDesc.TextWrapped = true
+aimDesc.Font = Enum.Font.Gotham
+aimDesc.TextSize = 14
+
+-- Settings Tab
+local settingsTab = Instance.new("Frame", contentFrame)
+settingsTab.Name = "Settings"
+settingsTab.Size = UDim2.new(1, 0, 1, 0)
+settingsTab.BackgroundTransparency = 1
+settingsTab.Visible = false
+
+local settingsLabel = Instance.new("TextLabel", settingsTab)
+settingsLabel.Size = UDim2.new(1, -30, 0, 40)
+settingsLabel.Position = UDim2.new(0, 15, 0, 15)
+settingsLabel.BackgroundTransparency = 1
+settingsLabel.Text = "Cài đặt sẽ được cập nhật sau..."
+settingsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+settingsLabel.Font = Enum.Font.Gotham
+settingsLabel.TextSize = 16
+
+-- Create tab buttons
+local tabAimBtn = createTabButton("Aimlock", 1)
+local tabSettingsBtn = createTabButton("Settings", 2)
+
+-- Default tab colors
+tabAimBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+
+-- Dragging logic for hubFrame
+do
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPos
+
+    local function update(input)
+        local delta = input.Position - dragStart
+        hubFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+
+    hubFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragInput = input
+            dragStart = input.Position
+            startPos = hubFrame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    hubFrame.InputChanged:Connect(function(input)
+        if input == dragInput then
+            update(input)
+        end
+    end)
+end
+
+-- Toggle hub show/hide ngay lập tức (no animation)
+local function showHub()
+    hubFrame.Visible = true
+    hubFrame.Size = UDim2.new(0, 480, 0, 320)
+    hubFrame.Position = UDim2.new(1, -490, 0, 40)
+end
+
+local function hideHub()
+    hubFrame.Visible = false
+end
+
+local hubOpen = false
+
+local function toggleHub()
+    if hubOpen then
+        hideHub()
+    else
+        showHub()
+    end
+    hubOpen = not hubOpen
+end
+
+-- Connect floating bar click
+floatBar.MouseButton1Click:Connect(toggleHub)
+
+-- Connect close button click
+closeBtn.MouseButton1Click:Connect(function()
+    if hubOpen then
+        toggleHub()
+    end
+end)
+
+-- Aimlock logic
+local function getTarget()
+    local char = player.Character
+    if not char or not char:FindFirstChild(aimPartName) then return nil end
+    local camCF = camera.CFrame
+    local closest, closestDot = nil, aimMinDot
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild(aimPartName) then
+            local hrp = plr.Character[aimPartName]
+            local dir = (hrp.Position - camera.CFrame.Position).Unit
+            local dot = dir:Dot(camCF.LookVector)
+            local dist = (hrp.Position - char.HumanoidRootPart.Position).Magnitude
+            if dot > closestDot and dist <= aimRange then
+                closestDot = dot
+                closest = hrp
+            end
+        end
+    end
+    return closest
+end
+
+RunService.RenderStepped:Connect(function()
+    if aimEnabled then
+        local target = getTarget()
+        if target then
+            local camPos = camera.CFrame.Position
+            local newCF = CFrame.new(camPos, target.Position)
+            camera.CFrame = newCF
+        end
+    end
+end)
+
+print("DarknessGodHub loaded.")
     return btn
 end
 
