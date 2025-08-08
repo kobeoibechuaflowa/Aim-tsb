@@ -1,0 +1,471 @@
+-- DarknessGodHub full v1.0
+-- Script UI + Aimlock (bật/tắt bằng nút)
+-- Màu đen-xanh neon kiểu KRNL
+-- Có thanh nhỏ ngoài màn để mở/đóng hub với animation phóng to/thu nhỏ
+-- Hub có thể kéo di chuyển
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- Aimlock config
+local aimEnabled = false
+local aimPartName = "HumanoidRootPart"
+local aimRange = 50
+local aimMinDot = 0.95 -- chỉ target người trước mặt
+
+-- UI config
+local toggleAnimTime = 0.3
+
+-- ScreenGui setup
+local gui = Instance.new("ScreenGui")
+gui.Name = "DarknessGodHub"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- Floating toggle bar (ngoài màn)
+local floatBar = Instance.new("TextButton")
+floatBar.Name = "ToggleBar"
+floatBar.Size = UDim2.new(0, 140, 0, 30)
+floatBar.Position = UDim2.new(1, -150, 0, 40)
+floatBar.AnchorPoint = Vector2.new(0,0)
+floatBar.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+floatBar.BorderSizePixel = 0
+floatBar.Text = "DarknessGodHub"
+floatBar.Font = Enum.Font.GothamBold
+floatBar.TextSize = 18
+floatBar.TextColor3 = Color3.fromRGB(0, 255, 255)
+floatBar.Parent = gui
+local floatBarCorner = Instance.new("UICorner", floatBar)
+floatBarCorner.CornerRadius = UDim.new(0, 10)
+
+-- Main Hub Frame (ẩn ban đầu)
+local hubFrame = Instance.new("Frame")
+hubFrame.Name = "HubFrame"
+hubFrame.Size = UDim2.new(0, 480, 0, 320)
+hubFrame.Position = UDim2.new(1, 50, 0, 40)
+hubFrame.AnchorPoint = Vector2.new(0,0)
+hubFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+hubFrame.BorderSizePixel = 0
+hubFrame.Visible = false
+hubFrame.Parent = gui
+local hubCorner = Instance.new("UICorner", hubFrame)
+hubCorner.CornerRadius = UDim.new(0, 14)
+
+-- Shadow effect
+local shadow = Instance.new("ImageLabel", hubFrame)
+shadow.Size = UDim2.new(1, 30, 1, 30)
+shadow.Position = UDim2.new(0, -15, 0, -15)
+shadow.BackgroundTransparency = 1
+shadow.Image = "rbxassetid://1316045217"
+shadow.ImageTransparency = 0.5
+shadow.ZIndex = -1
+
+-- Title bar
+local titleBar = Instance.new("Frame", hubFrame)
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.Position = UDim2.new(0, 0, 0, 0)
+titleBar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+titleBar.BorderSizePixel = 0
+local titleCorner = Instance.new("UICorner", titleBar)
+titleCorner.CornerRadius = UDim.new(0, 14)
+
+local titleLabel = Instance.new("TextLabel", titleBar)
+titleLabel.Size = UDim2.new(1, -90, 1, 0)
+titleLabel.Position = UDim2.new(0, 12, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "darknessgodhub"
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 20
+titleLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Close button
+local closeBtn = Instance.new("TextButton", titleBar)
+closeBtn.Size = UDim2.new(0, 80, 0, 28)
+closeBtn.Position = UDim2.new(1, -90, 0.5, -14)
+closeBtn.AnchorPoint = Vector2.new(0, 0.5)
+closeBtn.Text = "Close"
+closeBtn.Font = Enum.Font.Gotham
+closeBtn.TextSize = 14
+closeBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+closeBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+closeBtn.BorderSizePixel = 0
+local closeCorner = Instance.new("UICorner", closeBtn)
+closeCorner.CornerRadius = UDim.new(0, 8)
+
+-- Tabs frame
+local tabFrame = Instance.new("Frame", hubFrame)
+tabFrame.Size = UDim2.new(0, 130, 1, -40)
+tabFrame.Position = UDim2.new(0, 0, 0, 40)
+tabFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+tabFrame.BorderSizePixel = 0
+local tabCorner = Instance.new("UICorner", tabFrame)
+tabCorner.CornerRadius = UDim.new(0, 10)
+
+-- Content frame
+local contentFrame = Instance.new("Frame", hubFrame)
+contentFrame.Size = UDim2.new(1, -130, 1, -40)
+contentFrame.Position = UDim2.new(0, 130, 0, 40)
+contentFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+contentFrame.BorderSizePixel = 0
+local contentCorner = Instance.new("UICorner", contentFrame)
+contentCorner.CornerRadius = UDim.new(0, 10)
+
+-- Utility to create tab buttons
+local function createTabButton(name, order)
+    local btn = Instance.new("TextButton", tabFrame)
+    btn.Size = UDim2.new(1, 0, 0, 38)
+    btn.Position = UDim2.new(0, 0, 0, (order - 1) * 38)
+    btn.BackgroundTransparency = 1
+    btn.Text = name
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 16
+    btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+    btn.Name = name .. "Btn"
+    btn.AutoButtonColor = true
+    btn.MouseButton1Click:Connect(function()
+        for _, frame in pairs(contentFrame:GetChildren()) do
+            if frame:IsA("Frame") then
+                frame.Visible = frame.Name == name
+            end
+        end
+        for _, button in pairs(tabFrame:GetChildren()) do
+            if button:IsA("TextButton") then
+                button.TextColor3 = button.Name == name .. "Btn" and Color3.fromRGB(0, 255, 255) or Color3.fromRGB(180, 180, 180)
+            end
+        end
+    end)
+    return btn
+end
+
+-- Tabs Content
+
+-- Aimlock Tab
+local aimTab = Instance.new("Frame", contentFrame)
+aimTab.Name = "Aimlock"
+aimTab.Size = UDim2.new(1, 0, 1, 0)
+aimTab.BackgroundTransparency = 1
+aimTab.Visible = true
+
+local aimToggleBtn = Instance.new("TextButton", aimTab)
+aimToggleBtn.Size = UDim2.new(0, 180, 0, 40)
+aimToggleBtn.Position = UDim2.new(0, 15, 0, 15)
+aimToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 255)
+aimToggleBtn.Text = "Aimlock: OFF"
+aimToggleBtn.Font = Enum.Font.GothamBold
+aimToggleBtn.TextSize = 18
+aimToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+aimToggleBtn.BorderSizePixel = 0
+local aimToggleCorner = Instance.new("UICorner", aimToggleBtn)
+aimToggleCorner.CornerRadius = UDim.new(0, 8)
+
+aimToggleBtn.MouseButton1Click:Connect(function()
+    aimEnabled = not aimEnabled
+    aimToggleBtn.Text = aimEnabled and "Aimlock: ON" or "Aimlock: OFF"
+    aimToggleBtn.BackgroundColor3 = aimEnabled and Color3.fromRGB(0, 255, 180) or Color3.fromRGB(0, 180, 255)
+end)
+
+local aimDesc = Instance.new("TextLabel", aimTab)
+aimDesc.Size = UDim2.new(1, -30, 0, 60)
+aimDesc.Position = UDim2.new(0, 15, 0, 65)
+aimDesc.BackgroundTransparency = 1
+aimDesc.Text = "Aimlock sẽ tự động khóa camera vào phần thân người chơi trước mặt bạn trong phạm vi 50 studs.\nBật/tắt bằng nút trên."
+aimDesc.TextColor3 = Color3.fromRGB(200, 200, 200)
+aimDesc.TextWrapped = true
+aimDesc.Font = Enum.Font.Gotham
+aimDesc.TextSize = 14
+
+-- Settings Tab
+local settingsTab = Instance.new("Frame", contentFrame)
+settingsTab.Name = "Settings"
+settingsTab.Size = UDim2.new(1, 0, 1, 0)
+settingsTab.BackgroundTransparency = 1
+settingsTab.Visible = false
+
+local settingsLabel = Instance.new("TextLabel", settingsTab)
+settingsLabel.Size = UDim2.new(1, -30, 0, 40)
+settingsLabel.Position = UDim2.new(0, 15, 0, 15)
+settingsLabel.BackgroundTransparency = 1
+settingsLabel.Text = "Cài đặt sẽ được cập nhật sau..."
+settingsLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+settingsLabel.Font = Enum.Font.Gotham
+settingsLabel.TextSize = 16
+
+-- Create tab buttons
+local tabAimBtn = createTabButton("Aimlock", 1)
+local tabSettingsBtn = createTabButton("Settings", 2)
+
+-- Default tab colors
+tabAimBtn.TextColor3 = Color3.fromRGB(0, 255, 255)
+
+-- Dragging logic for hubFrame
+do
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPos
+
+    local function update(input)
+        local delta = input.Position - dragStart
+        hubFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+
+    hubFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragInput = input
+            dragStart = input.Position
+            startPos = hubFrame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    hubFrame.InputChanged:Connect(function(input)
+        if input == dragInput then
+            update(input)
+        end
+    end)
+end
+
+-- Toggle hub show/hide with animation (phóng to/thu nhỏ)
+local function showHub()
+    hubFrame.Visible = true
+    hubFrame.Size = UDim2.new(0, 10, 0, 7) -- nhỏ nhất
+    hubFrame.Position = UDim2.new(1, -160, 0, 40)
+    TweenService:Create(hubFrame, TweenInfo.new(toggleAnimTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 480, 0, 320),
+        Position = UDim2.new(1, -490, 0, 40)
+    }):Play()
+end
+
+local function hideHub()
+    TweenService:Create(hubFrame, TweenInfo.new(toggleAnimTime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 10, 0, 7),
+        Position = UDim2.new(1, -160, 0, 40)
+    }):Play()
+    task.delay(toggleAnimTime, function()
+        hubFrame.Visible = false
+    end)
+end
+
+local hubOpen = false
+
+local function toggleHub()
+    if hubOpen then
+        hideHub()
+    else
+        showHub()
+    end
+    hubOpen = not hubOpen
+end
+
+-- Connect floating bar click
+floatBar.MouseButton1Click:Connect(toggleHub)
+
+-- Connect close button click
+closeBtn.MouseButton1Click:Connect(function()
+    if hubOpen then
+        toggleHub()
+    end
+end)
+
+-- Aimlock logic
+local function getTarget()
+    local char = player.Character
+    if not char or not char:FindFirstChild(aimPartName) then return nil end
+    local camCF = camera.CFrame
+    local closest, closestDot = nil, aimMinDot
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild(aimPartName) then
+            local hrp = plr.Character[aimPartName]
+            local dir = (hrp.Position - camera.CFrame.Position).Unit
+            local dot = dir:Dot(camCF.LookVector)
+            local dist = (hrp.Position - char.HumanoidRootPart.Position).Magnitude
+            if dot > closestDot and dist <= aimRange then
+                closestDot = dot
+                closest = hrp
+            end
+        end
+    end
+    return closest
+end
+
+RunService.RenderStepped:Connect(function()
+    if aimEnabled then
+        local target = getTarget()
+        if target then
+            local camPos = camera.CFrame.Position
+            local newCF = CFrame.new(camPos, target.Position)
+            camera.CFrame = newCF
+        end
+    end
+end)
+
+print("DarknessGodHub loaded.")
+    UIListLayout.Parent = dropFrame
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local btn = Instance.new("TextButton", dropFrame)
+            btn.Size = UDim2.new(1, 0, 0, 25)
+            btn.Text = player.Name
+            btn.Font = Enum.Font.Gotham
+            btn.TextSize = 14
+            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+            btn.TextColor3 = Color3.fromRGB(255,255,255)
+            btn.MouseButton1Click:Connect(function()
+                selectedPlayer = player
+                dropdown.Text = "🕽️ " .. player.Name
+                dropFrame.Visible = false
+            end)
+        end
+    end
+end
+
+dropdown.MouseButton1Click:Connect(function()
+    dropFrame.Visible = not dropFrame.Visible
+end)
+
+local refreshBtn = Instance.new("TextButton", underPanel)
+refreshBtn.Size = UDim2.new(0.8, 0, 0, 25)
+refreshBtn.Position = UDim2.new(0.1, 0, 1, -35)
+refreshBtn.Text = "🔄 Làm mới danh sách"
+refreshBtn.Font = Enum.Font.Gotham
+refreshBtn.TextSize = 14
+refreshBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
+refreshBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", refreshBtn).CornerRadius = UDim.new(0, 6)
+
+refreshBtn.MouseButton1Click:Connect(refreshPlayerList)
+refreshPlayerList()
+
+-- TOGGLE GUI
+local toggleGuiBtn = Instance.new("TextButton", frame)
+toggleGuiBtn.Size = UDim2.new(0.8, 0, 0, 25)
+toggleGuiBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
+toggleGuiBtn.Text = "👁 Ẩn UI"
+toggleGuiBtn.Font = Enum.Font.Gotham
+toggleGuiBtn.TextSize = 14
+toggleGuiBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+toggleGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", toggleGuiBtn).CornerRadius = UDim.new(0, 6)
+
+local showGuiBtn = Instance.new("TextButton", screenGui)
+showGuiBtn.Size = UDim2.new(0, 120, 0, 30)
+showGuiBtn.Position = UDim2.new(0, 10, 1, -40)
+showGuiBtn.Text = "👁 Mở lại UI"
+showGuiBtn.Font = Enum.Font.Gotham
+showGuiBtn.TextSize = 14
+showGuiBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
+showGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
+showGuiBtn.Visible = false
+Instance.new("UICorner", showGuiBtn).CornerRadius = UDim.new(0, 6)
+
+-- === Hiệu ứng UI ===
+local function animateHide()
+    local tweenOut = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+        BackgroundTransparency = 1
+    })
+    tweenOut:Play()
+    tweenOut.Completed:Connect(function()
+        frame.Visible = false
+        showGuiBtn.Visible = true
+        frame.Size = UDim2.new(0, 350, 0, 220)
+        frame.Position = UDim2.new(0.5, -175, 0.5, -110)
+        frame.BackgroundTransparency = 0
+    end)
+end
+
+local function animateShow()
+    frame.Visible = true
+    frame.Size = UDim2.new(0, 0, 0, 0)
+    frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    frame.BackgroundTransparency = 1
+
+    local tweenIn = TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 350, 0, 220),
+        Position = UDim2.new(0.5, -175, 0.5, -110),
+        BackgroundTransparency = 0
+    })
+    tweenIn:Play()
+end
+
+-- === Logic ===
+toggleBtn.MouseButton1Click:Connect(function()
+    aimbotEnabled = not aimbotEnabled
+    aimlockTarget = getTargetInFront()
+    local name = aimlockTarget and aimlockTarget.Name or "None"
+    statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
+end)
+
+toggleUnderBtn.MouseButton1Click:Connect(function()
+    underHitEnabled = not underHitEnabled
+    underStatusLabel.Text = "UnderHit: " .. (underHitEnabled and "ON" or "OFF") .. " | Target: " .. (selectedPlayer and selectedPlayer.Name or "None")
+end)
+
+tabAimbot.MouseButton1Click:Connect(function()
+    aimbotPanel.Visible = true
+    underPanel.Visible = false
+end)
+
+tabUnder.MouseButton1Click:Connect(function()
+    aimbotPanel.Visible = false
+    underPanel.Visible = true
+end)
+
+toggleGuiBtn.MouseButton1Click:Connect(function()
+    guiVisible = false
+    animateHide()
+end)
+
+showGuiBtn.MouseButton1Click:Connect(function()
+    guiVisible = true
+    showGuiBtn.Visible = false
+    animateShow()
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if input.KeyCode == Enum.KeyCode.Insert then
+        aimbotEnabled = not aimbotEnabled
+        aimlockTarget = getTargetInFront()
+        local name = aimlockTarget and aimlockTarget.Name or "None"
+        statusLabel.Text = "Aimbot: " .. (aimbotEnabled and "ON" or "OFF") .. " | Target: " .. name
+    elseif input.KeyCode == Enum.KeyCode.RightControl then
+        guiVisible = not guiVisible
+        if guiVisible then animateShow() else animateHide() end
+        showGuiBtn.Visible = not guiVisible
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if aimbotEnabled and aimlockTarget and aimlockTarget.Character and aimlockTarget.Character:FindFirstChild(aimPart) then
+        Camera.CFrame = CFrame.new(Camera.CFrame.Position, aimlockTarget.Character[aimPart].Position)
+    end
+
+    if underHitEnabled and selectedPlayer and selectedPlayer.Character then
+        local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local enemyHRP = selectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if myHRP and enemyHRP then
+            myHRP.CFrame = enemyHRP.CFrame * CFrame.new(4, -6, 0) -- lệch để tránh bị đánh
+            underStatusLabel.Text = "UnderHit: ON | Target: " .. selectedPlayer.Name
+        end
+    end
+end)
+
+print("\226\156\150 GODHUB v2 đã load đủ: Aimbot + UnderHit + Dropdown + UI mượt")
