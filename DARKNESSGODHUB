@@ -1,145 +1,145 @@
--- DarknessGodHub v3 - Aimlock + UI mở/đóng + Thanh nhỏ + Tween mượt
--- Màu đen-xanh neon kiểu KRNL - By ChatGPT
+-- DarknessGodHub - Aimlock + UI Toggle + Body Lock
+-- Made for The Strongest Battlegrounds
+-- Bật/tắt Aimlock: phím E hoặc nút trong UI
+-- Mở/đóng UI: thanh nhỏ ngoài màn hình
 
---== Dịch vụ Roblox ==--
 local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
+local RunService = game:GetService("RunService")
 
---== Biến Aimlock ==--
-local AimlockEnabled = false
-local AimKey = Enum.KeyCode.E
-local Target = nil
+-- ================== SETTINGS ==================
+local aimKey = Enum.KeyCode.E
+local aimRadius = 50 -- px trên màn hình
+local aimPartName = "HumanoidRootPart"
+-- ===============================================
 
---== Hàm kiểm tra mục tiêu trước mặt ==--
-local function IsInFront(targetPart)
-    local direction = (targetPart.Position - Camera.CFrame.Position).Unit
-    local dot = direction:Dot(Camera.CFrame.LookVector)
-    return dot > 0.5
-end
+local aiming = false
+local target = nil
 
---== Hàm lấy mục tiêu gần nhất trước mặt ==--
-local function GetClosestTarget()
-    local closest = nil
-    local shortestDist = math.huge
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local HRP = player.Character.HumanoidRootPart
-            if IsInFront(HRP) then
-                local screenPoint, onScreen = Camera:WorldToViewportPoint(HRP.Position)
-                if onScreen then
-                    local dist = (Vector2.new(screenPoint.X, screenPoint.Y) - UIS:GetMouseLocation()).Magnitude
-                    if dist < shortestDist then
-                        shortestDist = dist
-                        closest = player
-                    end
-                end
-            end
-        end
-    end
-    return closest
-end
+-- UI Elements
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+ScreenGui.ResetOnSpawn = false
 
---== Hàm bật/tắt Aimlock ==--
-local function ToggleAimlock(state)
-    AimlockEnabled = state
-    if AimlockEnabled then
-        Target = GetClosestTarget()
-    else
-        Target = nil
-    end
-    AimButton.Text = "Aimlock: " .. (AimlockEnabled and "ON" or "OFF")
-end
+-- Thanh nhỏ ngoài màn hình
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(0, 120, 0, 35)
+ToggleButton.Position = UDim2.new(0, 20, 0.5, -17)
+ToggleButton.Text = "DarknessGodHub"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 170)
+ToggleButton.TextColor3 = Color3.new(0, 0, 0)
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 14
+ToggleButton.Parent = ScreenGui
+ToggleButton.Active = true
+ToggleButton.Draggable = true
 
---== Aimlock Update ==--
-RunService.RenderStepped:Connect(function()
-    if AimlockEnabled and Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
-        Camera.CFrame = CFrame.new(Camera.CFrame.Position, Target.Character.HumanoidRootPart.Position)
-    end
-end)
+-- Hub chính
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BorderSizePixel = 0
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+MainFrame.Active = true
+MainFrame.Draggable = true
 
---== UI Setup ==--
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-local HubFrame = Instance.new("Frame")
-local UICorner = Instance.new("UICorner")
+-- Tiêu đề
 local Title = Instance.new("TextLabel")
-local AimButton = Instance.new("TextButton")
-local Dragging, DragStart, StartPos
-
--- HubFrame
-HubFrame.Size = UDim2.new(0, 300, 0, 200)
-HubFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
-HubFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-HubFrame.Visible = false
-UICorner.CornerRadius = UDim.new(0, 8)
-UICorner.Parent = HubFrame
-HubFrame.Parent = ScreenGui
-
--- Title
-Title.Text = "DarknessGodHub"
 Title.Size = UDim2.new(1, 0, 0, 40)
-Title.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-Title.TextColor3 = Color3.fromRGB(0, 0, 0)
-Title.TextScaled = true
-Title.Parent = HubFrame
+Title.BackgroundTransparency = 1
+Title.Text = "DarknessGodHub"
+Title.TextColor3 = Color3.fromRGB(0, 255, 170)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.Parent = MainFrame
 
--- AimButton
-AimButton.Size = UDim2.new(0.8, 0, 0, 40)
-AimButton.Position = UDim2.new(0.1, 0, 0.4, 0)
-AimButton.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-AimButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-AimButton.TextScaled = true
+-- Nút bật/tắt Aimlock
+local AimButton = Instance.new("TextButton")
+AimButton.Size = UDim2.new(0, 120, 0, 40)
+AimButton.Position = UDim2.new(0.5, -60, 0.5, -20)
 AimButton.Text = "Aimlock: OFF"
-AimButton.Parent = HubFrame
+AimButton.BackgroundColor3 = Color3.fromRGB(0, 255, 170)
+AimButton.TextColor3 = Color3.new(0, 0, 0)
+AimButton.Font = Enum.Font.GothamBold
+AimButton.TextSize = 16
+AimButton.Parent = MainFrame
 
+-- Tween mở/đóng Hub
+local function toggleHub(state)
+	MainFrame.Visible = true
+	if state then
+		MainFrame.Size = UDim2.new(0, 0, 0, 0)
+		MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UDim2.new(0, 300, 0, 200),
+			Position = UDim2.new(0.5, -150, 0.5, -100)
+		})
+		tween:Play()
+	else
+		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = UDim2.new(0, 0, 0, 0),
+			Position = UDim2.new(0.5, 0, 0.5, 0)
+		})
+		tween:Play()
+		tween.Completed:Connect(function()
+			MainFrame.Visible = false
+		end)
+	end
+end
+
+-- Sự kiện click thanh ngoài
+local hubOpen = false
+ToggleButton.MouseButton1Click:Connect(function()
+	hubOpen = not hubOpen
+	toggleHub(hubOpen)
+end)
+
+-- Nút bật/tắt Aimlock
 AimButton.MouseButton1Click:Connect(function()
-    ToggleAimlock(not AimlockEnabled)
+	aiming = not aiming
+	AimButton.Text = "Aimlock: " .. (aiming and "ON" or "OFF")
 end)
 
--- Kéo di chuyển Hub
-Title.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        Dragging = true
-        DragStart = input.Position
-        StartPos = HubFrame.Position
-    end
-end)
-Title.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement and Dragging then
-        local delta = input.Position - DragStart
-        HubFrame.Position = UDim2.new(StartPos.X.Scale, StartPos.X.Offset + delta.X, StartPos.Y.Scale, StartPos.Y.Offset + delta.Y)
-    end
-end)
-UIS.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        Dragging = false
-    end
+-- Phím tắt bật/tắt Aimlock
+UIS.InputBegan:Connect(function(input, gpe)
+	if not gpe and input.KeyCode == aimKey then
+		aiming = not aiming
+		AimButton.Text = "Aimlock: " .. (aiming and "ON" or "OFF")
+	end
 end)
 
---== Thanh nhỏ ngoài màn ==--
-local SmallButton = Instance.new("TextButton")
-SmallButton.Size = UDim2.new(0, 120, 0, 30)
-SmallButton.Position = UDim2.new(0, 10, 0.5, 0)
-SmallButton.BackgroundColor3 = Color3.fromRGB(0, 255, 150)
-SmallButton.TextColor3 = Color3.fromRGB(0, 0, 0)
-SmallButton.TextScaled = true
-SmallButton.Text = "DarknessGodHub"
-SmallButton.Parent = ScreenGui
+-- Hàm tìm target trước mặt
+local function getClosestPlayer()
+	local closest, dist = nil, aimRadius
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(aimPartName) then
+			local pos, onScreen = Camera:WorldToViewportPoint(p.Character[aimPartName].Position)
+			if onScreen then
+				local vec = Vector2.new(pos.X - UIS:GetMouseLocation().X, pos.Y - UIS:GetMouseLocation().Y)
+				local mag = vec.Magnitude
+				if mag < dist then
+					dist = mag
+					closest = p
+				end
+			end
+		end
+	end
+	return closest
+end
 
-local TweenInfoOpen = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local TweenInfoClose = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-
-SmallButton.MouseButton1Click:Connect(function()
-    if not HubFrame.Visible then
-        HubFrame.Visible = true
-        HubFrame.Size = UDim2.new(0, 0, 0, 0)
-        TweenService:Create(HubFrame, TweenInfoOpen, {Size = UDim2.new(0, 300, 0, 200)}):Play()
-    else
-        TweenService:Create(HubFrame, TweenInfoClose, {Size = UDim2.new(0, 0, 0, 0)}):Play()
+-- Aimlock loop
+RunService.RenderStepped:Connect(function()
+	if aiming then
+		local t = getClosestPlayer()
+		if t and t.Character and t.Character:FindFirstChild(aimPartName) then
+			Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Character[aimPartName].Position)
+		end
+	end
+end)
         task.wait(0.3)
         HubFrame.Visible = false
     end
