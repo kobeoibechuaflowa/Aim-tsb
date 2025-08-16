@@ -1,113 +1,81 @@
--- DarknessGodHub - Aimlock + UI Toggle + Body Lock
--- Made for The Strongest Battlegrounds
--- Bật/tắt Aimlock: phím E hoặc nút trong UI
--- Mở/đóng UI: thanh nhỏ ngoài màn hình
+-- Script The Strongest Battlegrounds
+-- UI Fram Kill + Aim
+-- Tạo bởi ChatGPT
 
-local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
-local RunService = game:GetService("RunService")
+-- Load UI Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
 
--- ================== SETTINGS ==================
-local aimKey = Enum.KeyCode.E
-local aimRadius = 50 -- px trên màn hình
-local aimPartName = "HumanoidRootPart"
--- ===============================================
+local Window = OrionLib:MakeWindow({Name = "TSB HUB", HidePremium = false, SaveConfig = true, ConfigFolder = "TSBHUB"})
 
-local aiming = false
-local target = nil
+-- Tab chính
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
--- UI Elements
-local ScreenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-ScreenGui.ResetOnSpawn = false
+-- Biến
+local FramKill = false
+local AimBot = false
+local AimTarget = nil
 
--- Thanh nhỏ ngoài màn hình
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(0, 120, 0, 35)
-ToggleButton.Position = UDim2.new(0, 20, 0.5, -17)
-ToggleButton.Text = "DarknessGodHub"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 170)
-ToggleButton.TextColor3 = Color3.new(0, 0, 0)
-ToggleButton.Font = Enum.Font.GothamBold
-ToggleButton.TextSize = 14
-ToggleButton.Parent = ScreenGui
-ToggleButton.Active = true
-ToggleButton.Draggable = true
+-- Fram Kill
+MainTab:AddToggle({
+    Name = "Fram Kill (Auto Attack)",
+    Default = false,
+    Callback = function(Value)
+        FramKill = Value
+        while FramKill do
+            task.wait(0.2)
+            for _,v in pairs(game.Players:GetPlayers()) do
+                if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                    -- Tấn công đối thủ
+                    game:GetService("ReplicatedStorage").Remotes.Attack:FireServer(v.Character)
+                end
+            end
+        end
+    end    
+})
 
--- Hub chính
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 200)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-MainFrame.BorderSizePixel = 0
-MainFrame.Visible = false
-MainFrame.Parent = ScreenGui
-MainFrame.Active = true
-MainFrame.Draggable = true
+-- AimBot
+MainTab:AddToggle({
+    Name = "Aim Lock (Giữ chuột khóa mục tiêu)",
+    Default = false,
+    Callback = function(Value)
+        AimBot = Value
+    end    
+})
 
--- Tiêu đề
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.BackgroundTransparency = 1
-Title.Text = "DarknessGodHub"
-Title.TextColor3 = Color3.fromRGB(0, 255, 170)
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 20
-Title.Parent = MainFrame
-
--- Nút bật/tắt Aimlock
-local AimButton = Instance.new("TextButton")
-AimButton.Size = UDim2.new(0, 120, 0, 40)
-AimButton.Position = UDim2.new(0.5, -60, 0.5, -20)
-AimButton.Text = "Aimlock: OFF"
-AimButton.BackgroundColor3 = Color3.fromRGB(0, 255, 170)
-AimButton.TextColor3 = Color3.new(0, 0, 0)
-AimButton.Font = Enum.Font.GothamBold
-AimButton.TextSize = 16
-AimButton.Parent = MainFrame
-
--- Tween mở/đóng Hub
-local function toggleHub(state)
-	MainFrame.Visible = true
-	if state then
-		MainFrame.Size = UDim2.new(0, 0, 0, 0)
-		MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-			Size = UDim2.new(0, 300, 0, 200),
-			Position = UDim2.new(0.5, -150, 0.5, -100)
-		})
-		tween:Play()
-	else
-		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-			Size = UDim2.new(0, 0, 0, 0),
-			Position = UDim2.new(0.5, 0, 0.5, 0)
-		})
-		tween:Play()
-		tween.Completed:Connect(function()
-			MainFrame.Visible = false
-		end)
-	end
-end
-
--- Sự kiện click thanh ngoài
-local hubOpen = false
-ToggleButton.MouseButton1Click:Connect(function()
-	hubOpen = not hubOpen
-	toggleHub(hubOpen)
+-- Khóa aim vào người gần nhất
+game:GetService("RunService").RenderStepped:Connect(function()
+    if AimBot then
+        local closestPlayer = nil
+        local shortestDistance = math.huge
+        for _,v in pairs(game.Players:GetPlayers()) do
+            if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                local pos = v.Character.HumanoidRootPart.Position
+                local dist = (pos - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    closestPlayer = v
+                end
+            end
+        end
+        if closestPlayer and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
+        end
+    end
 end)
 
--- Nút bật/tắt Aimlock
-AimButton.MouseButton1Click:Connect(function()
-	aiming = not aiming
-	AimButton.Text = "Aimlock: " .. (aiming and "ON" or "OFF")
-end)
+-- Thoát UI
+MainTab:AddButton({
+    Name = "Tắt UI",
+    Callback = function()
+        OrionLib:Destroy()
+    end    
+})
 
--- Phím tắt bật/tắt Aimlock
-UIS.InputBegan:Connect(function(input, gpe)
-	if not gpe and input.KeyCode == aimKey then
-		aiming = not aiming
+OrionLib:Init()
 		AimButton.Text = "Aimlock: " .. (aiming and "ON" or "OFF")
 	end
 end)
