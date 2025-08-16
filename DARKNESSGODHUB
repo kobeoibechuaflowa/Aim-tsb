@@ -1,113 +1,83 @@
--- Script The Strongest Battlegrounds
--- UI Fram Kill + Aim
--- Tạo bởi ChatGPT
+-- OrionLib fix cho KRNL
+local success, lib = pcall(function()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
+end)
 
--- Load UI Library
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+if not success then
+    warn("Không tải được OrionLib, thử lại sau")
+    return
+end
 
-local Window = OrionLib:MakeWindow({Name = "TSB HUB", HidePremium = false, SaveConfig = true, ConfigFolder = "TSBHUB"})
+local OrionLib = lib
 
--- Tab chính
+local Window = OrionLib:MakeWindow({Name = "TSB HUB", HidePremium = false, SaveConfig = false})
+
 local MainTab = Window:MakeTab({
     Name = "Main",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
--- Biến
 local FramKill = false
 local AimBot = false
-local AimTarget = nil
 
 -- Fram Kill
 MainTab:AddToggle({
-    Name = "Fram Kill (Auto Attack)",
+    Name = "Fram Kill",
     Default = false,
     Callback = function(Value)
         FramKill = Value
-        while FramKill do
-            task.wait(0.2)
-            for _,v in pairs(game.Players:GetPlayers()) do
-                if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                    -- Tấn công đối thủ
-                    game:GetService("ReplicatedStorage").Remotes.Attack:FireServer(v.Character)
+        task.spawn(function()
+            while FramKill do
+                task.wait(0.3)
+                for _,v in pairs(game.Players:GetPlayers()) do
+                    if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                        pcall(function()
+                            game:GetService("ReplicatedStorage").Remotes.Attack:FireServer(v.Character)
+                        end)
+                    end
                 end
             end
-        end
+        end)
     end    
 })
 
 -- AimBot
 MainTab:AddToggle({
-    Name = "Aim Lock (Giữ chuột khóa mục tiêu)",
+    Name = "Aim Lock",
     Default = false,
     Callback = function(Value)
         AimBot = Value
     end    
 })
 
--- Khóa aim vào người gần nhất
 game:GetService("RunService").RenderStepped:Connect(function()
-    if AimBot then
-        local closestPlayer = nil
-        local shortestDistance = math.huge
+    if AimBot and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local closestPlayer, shortestDistance = nil, math.huge
         for _,v in pairs(game.Players:GetPlayers()) do
             if v ~= game.Players.LocalPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
-                local pos = v.Character.HumanoidRootPart.Position
-                local dist = (pos - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+                local dist = (v.Character.HumanoidRootPart.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).magnitude
                 if dist < shortestDistance then
                     shortestDistance = dist
                     closestPlayer = v
                 end
             end
         end
-        if closestPlayer and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if closestPlayer then
             workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, closestPlayer.Character.HumanoidRootPart.Position)
         end
     end
 end)
 
--- Thoát UI
+-- Tắt UI
 MainTab:AddButton({
-    Name = "Tắt UI",
+    Name = "Đóng UI",
     Callback = function()
         OrionLib:Destroy()
     end    
 })
 
 OrionLib:Init()
-		AimButton.Text = "Aimlock: " .. (aiming and "ON" or "OFF")
-	end
-end)
-
--- Hàm tìm target trước mặt
-local function getClosestPlayer()
-	local closest, dist = nil, aimRadius
-	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild(aimPartName) then
-			local pos, onScreen = Camera:WorldToViewportPoint(p.Character[aimPartName].Position)
-			if onScreen then
-				local vec = Vector2.new(pos.X - UIS:GetMouseLocation().X, pos.Y - UIS:GetMouseLocation().Y)
-				local mag = vec.Magnitude
-				if mag < dist then
-					dist = mag
-					closest = p
-				end
-			end
-		end
-	end
-	return closest
-end
-
--- Aimlock loop
-RunService.RenderStepped:Connect(function()
-	if aiming then
-		local t = getClosestPlayer()
-		if t and t.Character and t.Character:FindFirstChild(aimPartName) then
-			Camera.CFrame = CFrame.new(Camera.CFrame.Position, t.Character[aimPartName].Position)
-		end
-	end
-end)
         task.wait(0.3)
         HubFrame.Visible = false
     end
