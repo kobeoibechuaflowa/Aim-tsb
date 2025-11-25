@@ -1,168 +1,167 @@
 --// Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
 local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 
---// Variables
+--// Aim settings
 local aimEnabled = false
-local aimbotTarget = nil
+local aimRange = 120
+local aimDot = 0.6
 local aimPart = "HumanoidRootPart"
-local aimRange = 50
-local aimMinDot = 0.5
-
---// OrionLib Window
-local success, OrionLib = pcall(function()
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Orion/main/source"))()
-end)
-
-if not success then
-    warn("Không tải được OrionLib")
-    return
-end
-
-local Window = OrionLib:MakeWindow({Name = "TSB HUB", HidePremium = false, SaveConfig = false})
-local MainTab = Window:MakeTab({Name = "Main", Icon = "rbxassetid://4483345998", PremiumOnly = false})
-
---// Aimlock Toggle
-MainTab:AddToggle({
-    Name = "Aim Lock",
-    Default = false,
-    Callback = function(Value)
-        aimEnabled = Value
-    end    
-})
-
---// Close UI Button
-MainTab:AddButton({
-    Name = "Đóng UI",
-    Callback = function()
-        OrionLib:Destroy()
-    end    
-})
-
-OrionLib:Init()
-
---// UI Dropdown & Animation
-local screenGui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
-local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 350, 0, 220)
-frame.Position = UDim2.new(0.5, -175, 0.5, -110)
-frame.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
-frame.Visible = true
-frame.ClipsDescendants = true
-
-local UIListLayout = Instance.new("UIListLayout", frame)
-
--- Dropdown
-local dropdown = Instance.new("TextButton", frame)
-dropdown.Size = UDim2.new(0.9, 0, 0, 30)
-dropdown.Position = UDim2.new(0.05, 0, 0, 10)
-dropdown.Text = "Chọn người chơi"
-dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
-dropdown.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", dropdown).CornerRadius = UDim.new(0, 6)
-
-local dropFrame = Instance.new("Frame", frame)
-dropFrame.Size = UDim2.new(0.9, 0, 0, 150)
-dropFrame.Position = UDim2.new(0.05, 0, 0, 40)
-dropFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 90)
-dropFrame.Visible = false
-Instance.new("UICorner", dropFrame).CornerRadius = UDim.new(0, 6)
-
 local selectedPlayer = nil
-local function refreshPlayerList()
-    dropFrame:ClearAllChildren()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local btn = Instance.new("TextButton", dropFrame)
-            btn.Size = UDim2.new(1, 0, 0, 25)
-            btn.Text = player.Name
+
+-------------------------------------------------------------------
+--                          UI TẠO BẰNG CODE
+-------------------------------------------------------------------
+
+local ScreenGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
+ScreenGui.Name = "TSB_HUB"
+
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0,350,0,260)
+Frame.Position = UDim2.new(0.5,-175,0.5,-130)
+Frame.BackgroundColor3 = Color3.fromRGB(40,40,70)
+Frame.Active = true
+Frame.Draggable = true
+
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0,10)
+
+-- Title
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1,0,0,40)
+Title.BackgroundTransparency = 1
+Title.Text = "TSB HUB - AIMLOCK"
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+
+-- Aimlock Toggle Button
+local AimBtn = Instance.new("TextButton", Frame)
+AimBtn.Size = UDim2.new(0.9,0,0,35)
+AimBtn.Position = UDim2.new(0.05,0,0.18,0)
+AimBtn.Text = "Tắt Aimlock"
+AimBtn.BackgroundColor3 = Color3.fromRGB(70,70,100)
+AimBtn.TextColor3 = Color3.fromRGB(255,255,255)
+AimBtn.Font = Enum.Font.Gotham
+AimBtn.TextSize = 16
+Instance.new("UICorner", AimBtn).CornerRadius = UDim.new(0,6)
+
+-- Dropdown Button
+local DropBtn = Instance.new("TextButton", Frame)
+DropBtn.Size = UDim2.new(0.9,0,0,35)
+DropBtn.Position = UDim2.new(0.05,0,0.35,0)
+DropBtn.Text = "Chọn người chơi"
+DropBtn.BackgroundColor3 = Color3.fromRGB(70,70,100)
+DropBtn.TextColor3 = Color3.fromRGB(255,255,255)
+DropBtn.Font = Enum.Font.Gotham
+DropBtn.TextSize = 16
+Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0,6)
+
+-- Dropdown Frame
+local DropFrame = Instance.new("ScrollingFrame", Frame)
+DropFrame.Size = UDim2.new(0.9,0,0,120)
+DropFrame.Position = UDim2.new(0.05,0,0.5,0)
+DropFrame.BackgroundColor3 = Color3.fromRGB(50,50,80)
+DropFrame.CanvasSize = UDim2.new(0,0,0,0)
+DropFrame.Visible = false
+Instance.new("UICorner", DropFrame).CornerRadius = UDim.new(0,6)
+
+local UIList = Instance.new("UIListLayout", DropFrame)
+UIList.Padding = UDim.new(0,5)
+
+-- Toggle UI Button
+local HideBtn = Instance.new("TextButton", Frame)
+HideBtn.Size = UDim2.new(0.9,0,0,35)
+HideBtn.Position = UDim2.new(0.05,0,0.9,0)
+HideBtn.Text = "Ẩn UI"
+HideBtn.BackgroundColor3 = Color3.fromRGB(70,70,100)
+HideBtn.TextColor3 = Color3.fromRGB(255,255,255)
+HideBtn.Font = Enum.Font.Gotham
+HideBtn.TextSize = 16
+Instance.new("UICorner", HideBtn).CornerRadius = UDim.new(0,6)
+
+local ShowBtn = Instance.new("TextButton", ScreenGui)
+ShowBtn.Size = UDim2.new(0,140,0,40)
+ShowBtn.Position = UDim2.new(0,20,1,-60)
+ShowBtn.Text = "Hiện UI"
+ShowBtn.BackgroundColor3 = Color3.fromRGB(40,40,70)
+ShowBtn.TextColor3 = Color3.fromRGB(255,255,255)
+ShowBtn.Font = Enum.Font.Gotham
+ShowBtn.TextSize = 18
+Instance.new("UICorner", ShowBtn).CornerRadius = UDim.new(0,8)
+ShowBtn.Visible = false
+
+-------------------------------------------------------------------
+--                    DROPDOWN LOAD PLAYER LIST
+-------------------------------------------------------------------
+
+local function loadPlayerList()
+    DropFrame:ClearAllChildren()
+    UIList.Parent = DropFrame
+
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local btn = Instance.new("TextButton", DropFrame)
+            btn.Size = UDim2.new(1,0,0,28)
+            btn.Text = plr.Name
+            btn.BackgroundColor3 = Color3.fromRGB(60,60,100)
+            btn.TextColor3 = Color3.new(1,1,1)
             btn.Font = Enum.Font.Gotham
             btn.TextSize = 14
-            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 80)
-            btn.TextColor3 = Color3.fromRGB(255,255,255)
+
             btn.MouseButton1Click:Connect(function()
-                selectedPlayer = player
-                dropdown.Text = "🕽️ " .. player.Name
-                dropFrame.Visible = false
+                selectedPlayer = plr
+                DropBtn.Text = "Đang target: "..plr.Name
+                DropFrame.Visible = false
             end)
         end
     end
+
+    DropFrame.CanvasSize = UDim2.new(0,0,0,UIList.AbsoluteContentSize.Y+10)
 end
 
-dropdown.MouseButton1Click:Connect(function()
-    dropFrame.Visible = not dropFrame.Visible
+DropBtn.MouseButton1Click:Connect(function()
+    loadPlayerList()
+    DropFrame.Visible = not DropFrame.Visible
 end)
 
-refreshPlayerList()
+-------------------------------------------------------------------
+--                          TOGGLE AIMLOCK
+-------------------------------------------------------------------
 
---// Toggle GUI
-local toggleGuiBtn = Instance.new("TextButton", frame)
-toggleGuiBtn.Size = UDim2.new(0.8, 0, 0, 25)
-toggleGuiBtn.Position = UDim2.new(0.1, 0, 0.8, 0)
-toggleGuiBtn.Text = "👁 Ẩn UI"
-toggleGuiBtn.Font = Enum.Font.Gotham
-toggleGuiBtn.TextSize = 14
-toggleGuiBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
-toggleGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", toggleGuiBtn).CornerRadius = UDim.new(0, 6)
+AimBtn.MouseButton1Click:Connect(function()
+    aimEnabled = not aimEnabled
+    AimBtn.Text = aimEnabled and "Bật Aimlock" or "Tắt Aimlock"
+    AimBtn.BackgroundColor3 = aimEnabled and Color3.fromRGB(40,120,40) or Color3.fromRGB(120,40,40)
+end)
 
-local showGuiBtn = Instance.new("TextButton", screenGui)
-showGuiBtn.Size = UDim2.new(0, 120, 0, 30)
-showGuiBtn.Position = UDim2.new(0, 10, 1, -40)
-showGuiBtn.Text = "👁 Mở lại UI"
-showGuiBtn.Font = Enum.Font.Gotham
-showGuiBtn.TextSize = 14
-showGuiBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 70)
-showGuiBtn.TextColor3 = Color3.fromRGB(255,255,255)
-showGuiBtn.Visible = false
-Instance.new("UICorner", showGuiBtn).CornerRadius = UDim.new(0, 6)
+-------------------------------------------------------------------
+--                        SHOW / HIDE UI
+-------------------------------------------------------------------
 
--- Animate Show/Hide
-local function animateHide()
-    frame.Visible = false
-    showGuiBtn.Visible = true
-end
+HideBtn.MouseButton1Click:Connect(function()
+    Frame.Visible = false
+    ShowBtn.Visible = true
+end)
 
-local function animateShow()
-    frame.Visible = true
-    showGuiBtn.Visible = false
-end
+ShowBtn.MouseButton1Click:Connect(function()
+    Frame.Visible = true
+    ShowBtn.Visible = false
+end)
 
-toggleGuiBtn.MouseButton1Click:Connect(animateHide)
-showGuiBtn.MouseButton1Click:Connect(animateShow)
-
---// Aimlock Logic (chỉ trong game của bạn)
-local function getTarget()
-    local char = LocalPlayer.Character
-    if not char or not char:FindFirstChild(aimPart) then return nil end
-    local camCF = Camera.CFrame
-    local closest, closestDot = nil, aimMinDot
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild(aimPart) then
-            local hrp = plr.Character[aimPart]
-            local dir = (hrp.Position - camCF.Position).Unit
-            local dot = dir:Dot(camCF.LookVector)
-            local dist = (hrp.Position - char.HumanoidRootPart.Position).Magnitude
-            if dot > closestDot and dist <= aimRange then
-                closestDot = dot
-                closest = hrp
-            end
-        end
-    end
-    return closest
-end
+-------------------------------------------------------------------
+--                       AIMLOCK LOGIC (CHẠY)
+-------------------------------------------------------------------
 
 RunService.RenderStepped:Connect(function()
-    if aimEnabled then
-        local target = getTarget()
-        if target then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Position)
+    if aimEnabled and selectedPlayer and selectedPlayer.Character then
+        local targetPart = selectedPlayer.Character:FindFirstChild(aimPart)
+        if targetPart then
+            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
         end
     end
 end)
-
-print("Game UI + Aimlock Hub loaded successfully!")
