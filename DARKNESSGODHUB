@@ -9,10 +9,13 @@ local Camera = workspace.CurrentCamera
 
 --// Aim settings
 local aimEnabled = false
-local aimRange = 120
-local aimDot = 0.6
 local aimPart = "HumanoidRootPart"
 local selectedPlayer = nil
+
+-- Target-lock settings
+local smoothness = 0.12
+local lockKey = Enum.KeyCode.Q
+local isLocked = false
 
 -------------------------------------------------------------------
 --                          UI TẠO BẰNG CODE
@@ -27,14 +30,13 @@ Frame.Position = UDim2.new(0.5,-175,0.5,-130)
 Frame.BackgroundColor3 = Color3.fromRGB(40,40,70)
 Frame.Active = true
 Frame.Draggable = true
-
 Instance.new("UICorner", Frame).CornerRadius = UDim.new(0,10)
 
 -- Title
 local Title = Instance.new("TextLabel", Frame)
 Title.Size = UDim2.new(1,0,0,40)
 Title.BackgroundTransparency = 1
-Title.Text = "TSB HUB - AIMLOCK"
+Title.Text = "TSB HUB - TARGET LOCK"
 Title.TextColor3 = Color3.fromRGB(255,255,255)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 20
@@ -43,8 +45,8 @@ Title.TextSize = 20
 local AimBtn = Instance.new("TextButton", Frame)
 AimBtn.Size = UDim2.new(0.9,0,0,35)
 AimBtn.Position = UDim2.new(0.05,0,0.18,0)
-AimBtn.Text = "Tắt Aimlock"
-AimBtn.BackgroundColor3 = Color3.fromRGB(70,70,100)
+AimBtn.Text = "Tắt Target Lock"
+AimBtn.BackgroundColor3 = Color3.fromRGB(120,40,40)
 AimBtn.TextColor3 = Color3.fromRGB(255,255,255)
 AimBtn.Font = Enum.Font.Gotham
 AimBtn.TextSize = 16
@@ -135,8 +137,15 @@ end)
 
 AimBtn.MouseButton1Click:Connect(function()
     aimEnabled = not aimEnabled
-    AimBtn.Text = aimEnabled and "Bật Aimlock" or "Tắt Aimlock"
-    AimBtn.BackgroundColor3 = aimEnabled and Color3.fromRGB(40,120,40) or Color3.fromRGB(120,40,40)
+
+    if aimEnabled then
+        AimBtn.Text = "Bật Target Lock"
+        AimBtn.BackgroundColor3 = Color3.fromRGB(40,120,40)
+    else
+        AimBtn.Text = "Tắt Target Lock"
+        AimBtn.BackgroundColor3 = Color3.fromRGB(120,40,40)
+        isLocked = false
+    end
 end)
 
 -------------------------------------------------------------------
@@ -154,14 +163,31 @@ ShowBtn.MouseButton1Click:Connect(function()
 end)
 
 -------------------------------------------------------------------
---                       AIMLOCK LOGIC (CHẠY)
+--               TARGET LOCK MƯỢT CHO GAME BAY (HỢP LỆ)
 -------------------------------------------------------------------
 
-RunService.RenderStepped:Connect(function()
-    if aimEnabled and selectedPlayer and selectedPlayer.Character then
-        local targetPart = selectedPlayer.Character:FindFirstChild(aimPart)
-        if targetPart then
-            Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPart.Position)
+-- Nhấn Q để bật/tắt lock target
+UIS.InputBegan:Connect(function(input)
+    if input.KeyCode == lockKey then
+        if aimEnabled and selectedPlayer then
+            isLocked = not isLocked
         end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not isLocked then return end
+    if not aimEnabled then return end
+    if not selectedPlayer or not selectedPlayer.Character then return end
+
+    local char = selectedPlayer.Character
+    local targetPart = char:FindFirstChild(aimPart)
+
+    if targetPart then
+        local camPos = Camera.CFrame.Position
+        local targetCF = CFrame.new(camPos, targetPart.Position)
+
+        -- camera xoay mượt (không snap như cheat)
+        Camera.CFrame = Camera.CFrame:Lerp(targetCF, smoothness)
     end
 end)
